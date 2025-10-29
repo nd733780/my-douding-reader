@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocIn Batch Downloader</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+        }
+        
+        .input-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        
+        .input-group input[type="text"],
+        .input-group input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            font-size: 1em;
+        }
+        
+        .input-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            margin-top: 10px;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-stop {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .progress-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            display: none;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .status {
+            text-align: center;
+            font-size: 1.1em;
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .log {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        
+        .log-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .log-item:last-child {
+            border-bottom: none;
+        }
+        
+        .log-success {
+            color: #28a745;
+        }
+        
+        .log-error {
+            color: #dc3545;
+        }
+        
+        .log-info {
+            color: #17a2b8;
+        }
+        
+        .info-box {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box h3 {
+            margin-bottom: 10px;
+        }
+        
+        .info-box code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📥 DocIn Batch Downloader</h1>
+            <p>Download all .docin pages from DocIn.com</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <h3>ℹ️ How to use:</h3>
+                <p>1. Visit the DocIn document page (e.g., https://www.docin.com/p-894178435.html)</p>
+                <p>2. Open browser DevTools (F12) → Network tab</p>
+                <p>3. Refresh page and find requests to <code>page_XXX_0.docin</code></p>
+                <p>4. Copy the full URL including the <code>?sid=...</code> parameter</p>
+                <p>5. Paste below and click Download All</p>
+            </div>
+            
+            <div class="input-group">
+                <label>Document ID (e.g., 894178435):</label>
+                <input type="text" id="docId" placeholder="894178435" value="894178435">
+            </div>
+            
+            <div class="input-group">
+                <label>Session ID (sid parameter from URL):</label>
+                <input type="text" id="sessionId" placeholder="ZMS4OosQt0*qaupip1O554pgA9Z5X3NN7q44FkH6746*Jb0HQ4zr8exey1BsO1BG">
+            </div>
+            
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Start Page:</label>
+                    <input type="number" id="startPage" value="0" min="0">
+                </div>
+                
+                <div class="input-group">
+                    <label>End Page:</label>
+                    <input type="number" id="endPage" value="34" min="0">
+                </div>
+            </div>
+            
+            <button class="btn" id="downloadBtn" onclick="startDownload()">📥 Download All Pages</button>
+            <button class="btn btn-stop" id="stopBtn" onclick="stopDownload()" style="display: none;">⏹️ Stop Download</button>
+            
+            <div class="progress-section" id="progressSection">
+                <div class="status" id="status">Ready to download...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%">0%</div>
+                </div>
+                <div class="log" id="log"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isDownloading = false;
+        let shouldStop = false;
+        
+        function addLog(message, type = 'info') {
+            const log = document.getElementById('log');
+            const item = document.createElement('div');
+            item.className = `log-item log-${type}`;
+            const timestamp = new Date().toLocaleTimeString();
+            item.textContent = `[${timestamp}] ${message}`;
+            log.appendChild(item);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        function updateProgress(current, total) {
+            const percent = Math.round((current / total) * 100);
+            const fill = document.getElementById('progressFill');
+            fill.style.width = percent + '%';
+            fill.textContent = percent + '%';
+            
+            const status = document.getElementById('status');
+            status.textContent = `Downloading: ${current} / ${total} pages`;
+        }
+        
+        async function downloadFile(url, filename) {
+            try {
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const blob = await response.blob();
+                
+                // Create download link
+                const a = document.createElement('a');
+                const blobUrl = URL.createObjectURL(blob);
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+                
+                return true;
+            } catch (error) {
+                throw error;
+            }
+        }
+        
+        async function startDownload() {
+            const docId = document.getElementById('docId').value.trim();
+            const sessionId = document.getElementById('sessionId').value.trim();
+            const startPage = parseInt(document.getElementById('startPage').value);
+            const endPage = parseInt(document.getElementById('endPage').value);
+            
+            if (!docId) {
+                alert('Please enter Document ID');
+                return;
+            }
+            
+            if (!sessionId) {
+                alert('Please enter Session ID (sid)');
+                return;
+            }
+            
+            if (startPage > endPage) {
+                alert('Start page must be less than or equal to end page');
+                return;
+            }
+            
+            // Show progress section
+            document.getElementById('progressSection').style.display = 'block';
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'block';
+            document.getElementById('log').innerHTML = '';
+            
+            isDownloading = true;
+            shouldStop = false;
+            
+            addLog(`Starting download: ${endPage - startPage + 1} pages`, 'info');
+            addLog(`Document ID: ${docId}`, 'info');
+            
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (let i = startPage; i <= endPage; i++) {
+                if (shouldStop) {
+                    addLog('Download stopped by user', 'info');
+                    break;
+                }
+                
+                const filename = `page_${docId}_${i}.docin`;
+                const url = `https://page.douding.cn/docinfile2/ddes/${filename}?sid=${sessionId}`;
+                
+                try {
+                    addLog(`Downloading: ${filename}...`, 'info');
+                    await downloadFile(url, filename);
+                    successCount++;
+                    addLog(`✓ Success: ${filename}`, 'success');
+                    
+                    // Add delay to avoid rate limiting
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    
+                } catch (error) {
+                    errorCount++;
+                    addLog(`✗ Failed: ${filename} - ${error.message}`, 'error');
+                }
+                
+                updateProgress(i - startPage + 1, endPage - startPage + 1);
+            }
+            
+            // Download complete
+            isDownloading = false;
+            document.getElementById('stopBtn').style.display = 'none';
+            document.getElementById('downloadBtn').style.display = 'block';
+            
+            const status = document.getElementById('status');
+            status.textContent = `Complete! Success: ${successCount}, Failed: ${errorCount}`;
+            
+            addLog(`Download complete! Success: ${successCount}, Failed: ${errorCount}`, 'success');
+        }
+        
+        function stopDownload() {
+            if (isDownloading) {
+                shouldStop = true;
+                addLog('Stopping download...', 'info');
+            }
+        }
+        
+        // Auto-fill from URL if provided
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const docId = urlParams.get('id');
+            const sid = urlParams.get('sid');
+            
+            if (docId) document.getElementById('docId').value = docId;
+            if (sid) document.getElementById('sessionId').value = sid;
+        });
+    </script>
+</body>
+</html>
