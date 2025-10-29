@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local DocIn Viewer with Worker Integration</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .setup-section {
+            padding: 30px;
+            background: #fff3cd;
+            border-bottom: 2px solid #ffc107;
+        }
+        
+        .setup-section h3 {
+            color: #856404;
+            margin-bottom: 15px;
+        }
+        
+        .setup-section ol {
+            margin-left: 20px;
+            color: #856404;
+        }
+        
+        .setup-section li {
+            margin-bottom: 10px;
+        }
+        
+        .setup-section code {
+            background: #f8f9fa;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        .controls {
+            padding: 30px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #495057;
+        }
+        
+        .file-input-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .file-input-group input[type="file"],
+        .file-input-group input[type="text"] {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            font-size: 1em;
+            background: white;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            white-space: nowrap;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+        
+        .navigation {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        
+        .page-info {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #495057;
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .viewer {
+            padding: 30px;
+            min-height: 600px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .viewer canvas,
+        .viewer img {
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+        
+        .placeholder {
+            text-align: center;
+            color: #6c757d;
+            padding: 60px 20px;
+        }
+        
+        .placeholder h2 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #667eea;
+            font-size: 1.2em;
+            padding: 40px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .file-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: white;
+            margin-top: 15px;
+        }
+        
+        .file-item {
+            padding: 12px 20px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .file-item:hover {
+            background: #f8f9fa;
+        }
+        
+        .file-item.active {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Local DocIn Viewer</h1>
+            <p>View .docin files locally with JGCW decoder integration</p>
+        </div>
+        
+        <div class="setup-section">
+            <h3>⚙️ Setup Instructions:</h3>
+            <ol>
+                <li>Download the JGCW decoder: <code>jgcw.js</code> from DocIn CDN</li>
+                <li>Save it in the same folder as this HTML file</li>
+                <li>Load your <code>.docin</code> files from your local folder</li>
+                <li>The viewer will process them using the local decoder</li>
+            </ol>
+            <p style="margin-top: 10px; font-size: 0.9em;">
+                <strong>Note:</strong> You need the decoder file from: 
+                <code>https://page.douding.cn/huangke/HKReader-web-server/jgcw/[version]/jgcw.js</code>
+            </p>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>1. Select JGCW Decoder (jgcw.js):</label>
+                <div class="file-input-group">
+                    <input type="file" id="decoderInput" accept=".js" />
+                    <button class="btn" onclick="loadDecoder()">Load Decoder</button>
+                </div>
+                <div id="decoderStatus"></div>
+            </div>
+            
+            <div class="control-group">
+                <label>2. Select DocIn Files Folder:</label>
+                <div class="file-input-group">
+                    <input type="file" id="fileInput" multiple accept=".docin" webkitdirectory directory />
+                    <button class="btn" onclick="loadFiles()" id="loadFilesBtn" disabled>Load Files</button>
+                </div>
+            </div>
+            
+            <div class="control-group" id="pageControls" style="display: none;">
+                <div class="navigation">
+                    <button class="btn" onclick="previousPage()" id="prevBtn" disabled>← Previous</button>
+                    <span class="page-info" id="pageInfo">No files loaded</span>
+                    <button class="btn" onclick="nextPage()" id="nextBtn" disabled>Next →</button>
+                </div>
+                
+                <div class="file-list" id="fileList"></div>
+            </div>
+        </div>
+        
+        <div class="viewer" id="viewer">
+            <div class="placeholder">
+                <h2>Ready to View DocIn Files</h2>
+                <p>Follow the setup steps above to get started.</p>
+                <p style="margin-top: 15px; font-size: 0.9em; opacity: 0.7;">
+                    This viewer uses DocIn's JGCW decoder to properly render .docin files locally.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let files = [];
+        let currentIndex = 0;
+        let worker = null;
+        let decoderLoaded = false;
+        let decoderBlob = null;
+        
+        // Load the JGCW decoder
+        async function loadDecoder() {
+            const input = document.getElementById('decoderInput');
+            const statusDiv = document.getElementById('decoderStatus');
+            
+            if (!input.files || input.files.length === 0) {
+                alert('Please select the jgcw.js decoder file');
+                return;
+            }
+            
+            try {
+                const file = input.files[0];
+                const text = await file.text();
+                
+                // Create a blob URL for the worker
+                decoderBlob = new Blob([text], { type: 'application/javascript' });
+                const blobURL = URL.createObjectURL(decoderBlob);
+                
+                // Test if we can create a worker
+                try {
+                    const testWorker = new Worker(blobURL);
+                    testWorker.terminate();
+                    
+                    decoderLoaded = true;
+                    worker = null; // Will create when needed
+                    
+                    statusDiv.innerHTML = '<div class="success">✓ Decoder loaded successfully!</div>';
+                    document.getElementById('loadFilesBtn').disabled = false;
+                    
+                } catch (workerError) {
+                    throw new Error('Failed to initialize worker: ' + workerError.message);
+                }
+                
+            } catch (error) {
+                console.error('Decoder load error:', error);
+                statusDiv.innerHTML = `<div class="error">Failed to load decoder: ${error.message}</div>`;
+            }
+        }
+        
+        // Initialize worker with decoder
+        function initWorker() {
+            if (!decoderBlob) return null;
+            
+            const blobURL = URL.createObjectURL(decoderBlob);
+            const newWorker = new Worker(blobURL);
+            
+            newWorker.promises = {};
+            newWorker.promiseId = 0;
+            
+            newWorker.onmessage = function(e) {
+                const [type, result, id, data] = e.data;
+                if (type === 'RESULT' && newWorker.promises[id]) {
+                    newWorker.promises[id].resolve(data);
+                    delete newWorker.promises[id];
+                } else if (type === 'ERROR' && newWorker.promises[id]) {
+                    newWorker.promises[id].reject(data);
+                    delete newWorker.promises[id];
+                }
+            };
+            
+            return newWorker;
+        }
+        
+        // Call worker method
+        function callWorkerMethod(methodName, ...args) {
+            return new Promise((resolve, reject) => {
+                if (!worker) {
+                    worker = initWorker();
+                    if (!worker) {
+                        reject(new Error('Worker not initialized'));
+                        return;
+                    }
+                }
+                
+                const id = worker.promiseId++;
+                worker.promises[id] = { resolve, reject };
+                
+                worker.postMessage([methodName, args, id]);
+            });
+        }
+        
+        function loadFiles() {
+            const input = document.getElementById('fileInput');
+            if (!input.files || input.files.length === 0) {
+                alert('Please select a folder containing .docin files');
+                return;
+            }
+            
+            // Filter and sort .docin files
+            files = Array.from(input.files)
+                .filter(f => f.name.endsWith('.docin'))
+                .sort((a, b) => {
+                    const numA = extractPageNumber(a.name);
+                    const numB = extractPageNumber(b.name);
+                    return numA - numB;
+                });
+            
+            if (files.length === 0) {
+                alert('No .docin files found in the selected folder');
+                return;
+            }
+            
+            currentIndex = 0;
+            document.getElementById('pageControls').style.display = 'block';
+            displayFileList();
+            displayPage();
+            updateNavigation();
+        }
+        
+        function extractPageNumber(filename) {
+            const match = filename.match(/page_\d+_(\d+)\.docin/) || 
+                         filename.match(/_(\d+)\.docin/) ||
+                         filename.match(/(\d+)\.docin/);
+            return match ? parseInt(match[1]) : 0;
+        }
+        
+        function displayFileList() {
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = files.map((file, index) => 
+                `<div class="file-item ${index === currentIndex ? 'active' : ''}" onclick="goToPage(${index})">
+                    <span>${file.name}</span>
+                    <span class="status">Page ${extractPageNumber(file.name)}</span>
+                </div>`
+            ).join('');
+        }
+        
+        function goToPage(index) {
+            currentIndex = index;
+            displayPage();
+            updateNavigation();
+            displayFileList();
+        }
+        
+        async function displayPage() {
+            const viewer = document.getElementById('viewer');
+            
+            if (files.length === 0) {
+                viewer.innerHTML = `
+                    <div class="placeholder">
+                        <h2>No files loaded</h2>
+                        <p>Please select a folder containing .docin files.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            viewer.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Processing .docin file with JGCW decoder...</p>
+                </div>
+            `;
+            
+            try {
+                const file = files[currentIndex];
+                const arrayBuffer = await file.arrayBuffer();
+                const uint8Array = new Uint8Array(arrayBuffer);
+                
+                // Process with JGCW worker
+                const result = await processWithWorker(uint8Array, file.name);
+                
+                viewer.innerHTML = '';
+                viewer.appendChild(result);
+                
+            } catch (error) {
+                console.error('Error displaying page:', error);
+                viewer.innerHTML = `
+                    <div class="error">
+                        <strong>Error processing file:</strong><br>
+                        ${error.message}<br><br>
+                        <p>Make sure you've loaded a valid JGCW decoder file.</p>
+                        <p>The decoder should match the version used to create these .docin files.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        async function processWithWorker(data, filename) {
+            try {
+                // Initialize worker if needed
+                if (!worker) {
+                    worker = initWorker();
+                }
+                
+                // Call worker methods similar to the DocIn pipeline
+                // This is a template - actual method names depend on jgcw.js implementation
+                
+                // Step 1: Add page data to worker
+                await callWorkerMethod('addPage', data, extractPageNumber(filename));
+                
+                // Step 2: Render page
+                const renderResult = await callWorkerMethod('renderPage', 
+                    extractPageNumber(filename), 
+                    1000 // width
+                );
+                
+                // Step 3: Convert result to canvas/image
+                if (renderResult && renderResult.bitmap) {
+                    return createCanvasFromBitmap(renderResult);
+                } else {
+                    throw new Error('Invalid render result from worker');
+                }
+                
+            } catch (error) {
+                console.error('Worker processing error:', error);
+                
+                // Fallback: show file info
+                const canvas = document.createElement('canvas');
+                canvas.width = 794;
+                canvas.height = 1123;
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#333';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('DocIn File: ' + filename, canvas.width / 2, 100);
+                ctx.fillText('Size: ' + formatBytes(data.length), canvas.width / 2, 130);
+                ctx.fillText('Error: ' + error.message, canvas.width / 2, 200);
+                
+                return canvas;
+            }
+        }
+        
+        function createCanvasFromBitmap(renderResult) {
+            const canvas = document.createElement('canvas');
+            const { bitmap, width, height } = renderResult;
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            const ctx = canvas.getContext('2d');
+            const imageData = new ImageData(
+                new Uint8ClampedArray(bitmap),
+                width,
+                height
+            );
+            
+            ctx.putImageData(imageData, 0, 0);
+            return canvas;
+        }
+        
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        function previousPage() {
+            if (currentIndex > 0) {
+                currentIndex--;
+                displayPage();
+                updateNavigation();
+                displayFileList();
+            }
+        }
+        
+        function nextPage() {
+            if (currentIndex < files.length - 1) {
+                currentIndex++;
+                displayPage();
+                updateNavigation();
+                displayFileList();
+            }
+        }
+        
+        function updateNavigation() {
+            const prevBtn = document.getElementById('prevBtn');
+            const nextBtn = document.getElementById('nextBtn');
+            const pageInfo = document.getElementById('pageInfo');
+            
+            if (files.length === 0) {
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                pageInfo.textContent = 'No files loaded';
+            } else {
+                prevBtn.disabled = currentIndex === 0;
+                nextBtn.disabled = currentIndex === files.length - 1;
+                const pageNum = extractPageNumber(files[currentIndex].name);
+                pageInfo.textContent = `Page ${currentIndex + 1} / ${files.length} total`;
+            }
+        }
+        
+        // Keyboard navigation
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') previousPage();
+            if (e.key === 'ArrowRight') nextPage();
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (worker) {
+                worker.terminate();
+            }
+        });
+    </script>
+</body>
+</html>
